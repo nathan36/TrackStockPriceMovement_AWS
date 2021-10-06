@@ -57,7 +57,7 @@ def create_message(cond:float, stocks:list) -> str:
             payload += message
     return  payload
 
-def lambda_handler(event):
+def lambda_handler(event, context):
     try:
         stream_data = []
         for record in event['Records']:
@@ -77,8 +77,29 @@ def lambda_handler(event):
         print(str(e))
         raise e
 
-if __name__ == "__main__":
-    import json
-    f = open('input.txt')
-    event = json.load(f)
-    lambda_handler(event)
+# for local testing
+# def lambda_handler(event):
+#     try:
+#         stream_data = []
+#         for record in event['Records']:
+#             dic = {}
+#             symbol = record['dynamodb']['NewImage']['symbol']
+#             price = record['dynamodb']['NewImage']['price']
+#             datetime = record['dynamodb']['NewImage']['datetime']
+#             dic['symbol'] = list(symbol.values())[0]
+#             dic['price'] = list(price.values())[0]
+#             dic['datetime'] = list(datetime.values())[0]
+#             stream_data.append(dic)
+#             stocks = query_dynamodb(stream_data)
+#             message = create_message(0.02, stocks)
+#             publish_message(message)
+#         print("Success")
+#     except Exception as e:
+#         print(str(e))
+#         raise e
+#
+# if __name__ == "__main__":
+#     import json
+#     f = open('input.txt')
+#     event = json.load(f)
+#     lambda_handler(event)
