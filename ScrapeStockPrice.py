@@ -1,6 +1,7 @@
 import boto3
 import yfinance as yf
 from decimal import Decimal
+import json
 
 print('Loading function')
 
@@ -9,8 +10,8 @@ def get_input_fromS3(file_fullname) -> list:
 
     s3 = boto3.resource('s3')
     content_object = s3.Object('stock-ticker-script-bucket', file_fullname)
-    file_content = content_object.get()['Body'].read().decode('utf-8')
-    tickers_lst = list(file_content.split(","))
+    file_content = json.load(content_object.get()['Body'])
+    tickers_lst = file_content['StockTicker']
     return [ticker.strip() for ticker in tickers_lst]
 
 def get_stock_price(tickers:list) -> list:

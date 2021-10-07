@@ -47,18 +47,21 @@
             "S": "AMZN"
           },
           "price": {
-            "N": "3220"
+            "N": "4000"
           },
           "datetime": {
             "S": "2021-10-05T15:59:00-04:00"
           }
         },
         "OldImage": {
-          "Message": {
-            "S": "New item!"
+          "symbol": {
+            "S": "AMZN"
           },
-          "Id": {
-            "N": "101"
+          "price": {
+            "N": "3222"
+          },
+          "datetime": {
+            "S": "2021-10-05T15:59:00-04:00"
           }
         },
         "ApproximateCreationDateTime": 1428537600,

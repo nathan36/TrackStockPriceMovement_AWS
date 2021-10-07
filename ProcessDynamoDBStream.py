@@ -1,30 +1,18 @@
 import boto3
+import json
 
 print('Loading function')
 
-def query_dynamodb(stocks:list) -> list:
+def get_input_fromS3(file_fullname) -> float:
     '''
-    query dynamodb with stock symbol
-    :param stocks:
+    retrieve input from s3 bucket
+    :param file_fullname:
     :return:
     '''
-
-    result = []
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('stocks')
-    for stock in stocks:
-        print(stock)
-        dic = {}
-        response = table.get_item(
-            Key={'symbol': stock['symbol']}
-        )
-        base_price = float(response['Item']['price'])
-        price_delta = (float(stock['price']) - base_price)/base_price
-        dic['price_delta'] = price_delta
-        dic['datetime'] = stock['datetime']
-        dic['symbol'] = stock['symbol']
-        result.append(dic)
-    return result
+    s3 = boto3.resource('s3')
+    content_object = s3.Object('stock-ticker-script-bucket', file_fullname)
+    file_content = json.load(content_object.get()['Body'])
+    return float(file_content['AlartCond'])
 
 def publish_message(message):
     '''
@@ -32,13 +20,14 @@ def publish_message(message):
     :param message:
     :return:
     '''
-    sns = boto3.client('sns')
-    topicArn = 'arn:aws:sns:us-west-2:071144461289:StockPriceAlart'
-    response = sns.publish(TopicArn=topicArn,
-                           Message=message,
-                           Subject='Stock Price Alart')
-    message_id = response['MessageId']
-    return message_id
+    if message != '':
+        sns = boto3.client('sns')
+        topicArn = 'arn:aws:sns:us-west-2:071144461289:StockPriceAlart'
+        response = sns.publish(TopicArn=topicArn,
+                               Message=message,
+                               Subject='Stock Price Alart')
+        message_id = response['MessageId']
+        return message_id
 
 def create_message(cond:float, stocks:list) -> str:
     '''
@@ -59,18 +48,24 @@ def create_message(cond:float, stocks:list) -> str:
 
 def lambda_handler(event, context):
     try:
-        stream_data = []
+        stocks = []
         for record in event['Records']:
-            dic = {}
-            symbol = record['dynamodb']['NewImage']['symbol']
-            price = record['dynamodb']['NewImage']['price']
-            datetime = record['dynamodb']['NewImage']['datetime']
-            dic['symbol'] = list(symbol.values())[0]
-            dic['price'] = list(price.values())[0]
-            dic['datetime'] = list(datetime.values())[0]
-            stream_data.append(dic)
-            stocks = query_dynamodb(stream_data)
-            message = create_message(0.02, stocks)
+            if record['eventName'] != "INSERT":
+                dic = {}
+                symbol = record['dynamodb']['NewImage']['symbol']
+                price = record['dynamodb']['NewImage']['price']
+                datetime = record['dynamodb']['NewImage']['datetime']
+                base_price = record['dynamodb']['OldImage']['price']
+
+                price = float(list(price.values())[0])
+                base_price = float(list(base_price.values())[0])
+
+                dic['symbol'] = list(symbol.values())[0]
+                dic['datetime'] = list(datetime.values())[0]
+                dic['price_delta'] = (price-base_price)/base_price
+                stocks.append(dic)
+            cond = get_input_fromS3("input.txt")
+            message = create_message(cond, stocks)
             publish_message(message)
         print("Success")
     except Exception as e:
@@ -78,28 +73,34 @@ def lambda_handler(event, context):
         raise e
 
 # for local testing
-# def lambda_handler(event):
-#     try:
-#         stream_data = []
-#         for record in event['Records']:
-#             dic = {}
-#             symbol = record['dynamodb']['NewImage']['symbol']
-#             price = record['dynamodb']['NewImage']['price']
-#             datetime = record['dynamodb']['NewImage']['datetime']
-#             dic['symbol'] = list(symbol.values())[0]
-#             dic['price'] = list(price.values())[0]
-#             dic['datetime'] = list(datetime.values())[0]
-#             stream_data.append(dic)
-#             stocks = query_dynamodb(stream_data)
-#             message = create_message(0.02, stocks)
-#             publish_message(message)
-#         print("Success")
-#     except Exception as e:
-#         print(str(e))
-#         raise e
-#
-# if __name__ == "__main__":
-#     import json
-#     f = open('input.txt')
-#     event = json.load(f)
-#     lambda_handler(event)
+def lambda_handler1(event):
+    try:
+        stocks = []
+        for record in event['Records']:
+            if record['eventName'] != "INSERT":
+                dic = {}
+                symbol = record['dynamodb']['NewImage']['symbol']
+                price = record['dynamodb']['NewImage']['price']
+                datetime = record['dynamodb']['NewImage']['datetime']
+                base_price = record['dynamodb']['OldImage']['price']
+
+                price = float(list(price.values())[0])
+                base_price = float(list(base_price.values())[0])
+
+                dic['symbol'] = list(symbol.values())[0]
+                dic['datetime'] = list(datetime.values())[0]
+                dic['price_delta'] = (price - base_price) / base_price
+                stocks.append(dic)
+            cond = get_input_fromS3("input.txt")
+            message = create_message(cond, stocks)
+            publish_message(message)
+        print("Success")
+    except Exception as e:
+        print(str(e))
+        raise e
+
+if __name__ == "__main__":
+    import json
+    f = open('input.txt')
+    event = json.load(f)
+    lambda_handler1(event)
