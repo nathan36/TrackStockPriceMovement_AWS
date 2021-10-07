@@ -71,36 +71,3 @@ def lambda_handler(event, context):
     except Exception as e:
         print(str(e))
         raise e
-
-# for local testing
-def lambda_handler1(event):
-    try:
-        stocks = []
-        for record in event['Records']:
-            if record['eventName'] != "INSERT":
-                dic = {}
-                symbol = record['dynamodb']['NewImage']['symbol']
-                price = record['dynamodb']['NewImage']['price']
-                datetime = record['dynamodb']['NewImage']['datetime']
-                base_price = record['dynamodb']['OldImage']['price']
-
-                price = float(list(price.values())[0])
-                base_price = float(list(base_price.values())[0])
-
-                dic['symbol'] = list(symbol.values())[0]
-                dic['datetime'] = list(datetime.values())[0]
-                dic['price_delta'] = (price - base_price) / base_price
-                stocks.append(dic)
-            cond = get_input_fromS3("input.txt")
-            message = create_message(cond, stocks)
-            publish_message(message)
-        print("Success")
-    except Exception as e:
-        print(str(e))
-        raise e
-
-if __name__ == "__main__":
-    import json
-    f = open('input.txt')
-    event = json.load(f)
-    lambda_handler1(event)
