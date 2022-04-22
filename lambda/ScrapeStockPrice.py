@@ -33,7 +33,6 @@ def get_stock_price(tickers:list) -> list:
 
 def write_to_dynamodb(stocks:list) -> None:
     # write data to dynamodb
-
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table('stocks')
     for stock in stocks:
